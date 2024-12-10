@@ -1,5 +1,5 @@
-import gymnasium
-from gymnasium.utils import seeding
+import gym as gymnasium
+from gym.utils import seeding
 import numpy as np
 from typing import Dict, Any, Tuple
 from ..core.simulatior import AircraftSimulator, BaseSimulator
