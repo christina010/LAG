@@ -9,10 +9,9 @@ import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from typing import Literal
 from envs.JSBSim.core.catalog import Catalog as c
-from envs.JSBSim.utils.utils import in_range_rad, get_root_dir
+from envs.JSBSim.utils.utils import in_range_rad, get_root_dir, in_range_rad
 from envs.JSBSim.envs import SingleCombatEnv, SingleControlEnv
 from envs.JSBSim.model.baseline_actor import BaselineActor
-
 
 class BaselineAgent(ABC):
     def __init__(self, agent_id) -> None:
@@ -68,6 +67,75 @@ class BaselineAgent(ABC):
         action = _action.detach().cpu().numpy().squeeze()
         return action
 
+class ManeuverTestAgent(BaselineAgent):
+    def __init__(self, agent_id,testType) -> None:
+        super().__init__(agent_id)
+        self.turn_interval = 30
+        self.dodge_missile = False  # if set true, start turn when missile is detected
+        self.type = testType
+        if testType =='alt':
+            self.target_heading_list = [0] *6
+            self.target_altitude_list = [6000, 6500, 7000, 6500,6000,5500]
+            self.target_velocity_list = [243] * 6
+        elif testType =='heading':
+            self.target_heading_list = [np.pi / 3, np.pi, -np.pi / 3] * 2
+            self.target_altitude_list = [6000] * 6
+            self.target_velocity_list = [243] * 6
+        else :
+            self.target_heading_list = [0] *6
+            self.target_altitude_list = [20000*0.3048] *6
+            self.target_velocity_list =  [203]*2+[153]*2+[153]*2
+
+
+        self.target_headding = self.init_heading
+        self.target_alt = self.target_altitude_list[0]
+        self.target_velocity = self.target_velocity_list[0]
+
+
+    def reset(self):
+        self.step = 0
+        self.rnn_states = np.zeros((1, 1, 128))
+        self.init_heading = None
+        self.target_headding = None
+        self.target_alt = None
+        self.target_velocity = None
+
+    def set_delta_value(self, env, task):
+        step_list = np.arange(1, len(self.target_heading_list) + 1) * self.turn_interval / env.time_interval
+        uid = list(env.agents.keys())[self.agent_id]
+        cur_heading = env.agents[uid].get_property_value(c.attitude_heading_true_rad)
+        if self.init_heading is None:
+            self.init_heading = cur_heading
+            self.target_headding = cur_heading
+            self.target_alt = self.target_altitude_list[0]
+            self.target_velocity = self.target_velocity_list[0]
+        if not self.dodge_missile or task._check_missile_warning(env, self.agent_id) is not None:
+            for i, interval in enumerate(step_list):
+                if self.step <= interval:
+                    break
+            delta_heading = self.init_heading + self.target_heading_list[i] - cur_heading
+            delta_altitude = self.target_altitude_list[i] - env.agents[uid].get_property_value(c.position_h_sl_m)
+            delta_velocity = self.target_velocity_list[i] - env.agents[uid].get_property_value(c.velocities_u_mps) # velocities_u_mps
+            self.target_headding = self.init_heading + self.target_heading_list[i]
+            self.target_alt = self.target_altitude_list[i]
+            self.target_velocity = self.target_velocity_list[i]
+            self.step += 1
+        else:
+            delta_heading = self.init_heading - cur_heading
+            delta_altitude = 6000 - env.agents[uid].get_property_value(c.position_h_sl_m)
+            delta_velocity = 143 - env.agents[uid].get_property_value(c.velocities_u_mps)
+            print("ERROR!!")
+
+        return np.array([delta_altitude, delta_heading, delta_velocity])
+
+    def get_target_headding(self):
+        return self.target_headding
+
+    def get_target_alt(self):
+        return self.target_alt
+
+    def get_target_v(self):
+        return self.target_velocity
 
 class PursueAgent(BaselineAgent):
     def __init__(self, agent_id) -> None:
@@ -110,11 +178,13 @@ class ManeuverAgent(BaselineAgent):
             self.target_heading_list = [np.pi/3, np.pi, -np.pi/3]*2
         self.target_altitude_list = [6000] * 6
         self.target_velocity_list = [243]  * 6
+        self.target_headding=self.init_heading
 
     def reset(self):
         self.step = 0
         self.rnn_states = np.zeros((1, 1, 128))
         self.init_heading = None
+        self.target_headding = None
 
     def set_delta_value(self, env, task):
         step_list = np.arange(1, len(self.target_heading_list)+1) * self.turn_interval / env.time_interval
@@ -122,11 +192,13 @@ class ManeuverAgent(BaselineAgent):
         cur_heading = env.agents[uid].get_property_value(c.attitude_heading_true_rad)
         if self.init_heading is None:
             self.init_heading = cur_heading
+            self.target_headding= cur_heading
         if not self.dodge_missile or task._check_missile_warning(env, self.agent_id) is not None:
             for i, interval in enumerate(step_list):
                 if self.step <= interval:
                     break
             delta_heading = self.init_heading + self.target_heading_list[i] - cur_heading
+            self.target_headding=self.init_heading + self.target_heading_list[i]
             delta_altitude = self.target_altitude_list[i] - env.agents[uid].get_property_value(c.position_h_sl_m)
             delta_velocity = self.target_velocity_list[i] - env.agents[uid].get_property_value(c.velocities_u_mps)
             self.step += 1
@@ -138,13 +210,19 @@ class ManeuverAgent(BaselineAgent):
         return np.array([delta_altitude, delta_heading, delta_velocity])
 
 
-def test_maneuver():
+    def get_target_headding(self):
+        return self.target_headding
+
+def test_maneuver_heading():
     env = SingleCombatEnv(config_name='1v1/NoWeapon/test/opposite')
     obs = env.reset()
     env.render(filepath="control.txt.acmi")
-    agent0 = ManeuverAgent(agent_id=0, maneuver='triangle')
-    agent1 = PursueAgent(agent_id=1)
+    agent0 = ManeuverAgent(agent_id=0, maneuver='triangle') # 'A0100'    # 两种agent底层都使用网络， ManeuverAgent的驾驶是基于规则，每x秒切换。固定高度速度
+    agent1 = PursueAgent(agent_id=1) # 'B0100'
     reward_list = []
+    target_heading = []
+    ego_heading = []
+
     while True:
         action0 = agent0.get_action(env, env.task)
         action1 = agent1.get_action(env, env.task)
@@ -152,12 +230,109 @@ def test_maneuver():
         obs, reward, done, info = env.step(actions)
         env.render(filepath="control.txt.acmi")
         reward_list.append(reward[0])
+        target_heading.append(env.agents['A0100'].get_property_value(c.attitude_heading_true_rad))
+        ego_heading.append(agent0.get_target_headding())
         if np.array(done).all():
             print(info)
             break
-    # plt.plot(reward_list)
-    # plt.savefig('rewards.png')
+    plt.plot(target_heading)
+    plt.plot(ego_heading)
+    plt.savefig('error_heading.png')
+
+
+def test_maneuver_alt():
+    env = SingleCombatEnv(config_name='1v1/NoWeapon/test/opposite')
+    obs = env.reset()
+    env.render(filepath="control.txt.acmi")
+    agent0 = ManeuverAgent(agent_id=0,
+                           maneuver='triangle')  # 'A0100'    # 两种agent底层都使用网络， ManeuverAgent的驾驶是基于规则，每x秒切换。固定高度速度
+    agent1 = PursueAgent(agent_id=1)  # 'B0100'
+    reward_list = []
+    target_heading = []
+    ego_heading = []
+    while True:
+        action0 = agent0.get_action(env, env.task)
+        action1 = agent1.get_action(env, env.task)
+        actions = [action0, action1]
+        obs, reward, done, info = env.step(actions)
+        env.render(filepath="control.txt.acmi")
+        reward_list.append(reward[0])
+        target_heading.append(env.agents['A0100'].get_property_value(c.attitude_heading_true_rad))
+        ego_heading.append(agent0.get_target_headding())
+        if np.array(done).all():
+            print(info)
+            break
+    plt.plot(target_heading)
+    plt.plot(ego_heading)
+    plt.savefig('error_heading.png')
+
+
+def draw_pid():
+    path = 'D:\\HCH\\LAG\\pid\\v\\ego_value.txt'
+    rewards = []
+
+    # 读取文件中的数字并存入数组
+    with open(path, 'r') as file:
+        for line in file:
+            try:
+                # 转换每行内容为浮点数并添加到数组
+                rewards.append(float(line.strip()))
+            except ValueError:
+                print(f"Skipping invalid line: {line.strip()}")
+    plt.plot(rewards)
+
+
+def test_maneuver(test_type):
+    env = SingleCombatEnv(config_name='1v1/NoWeapon/test/opposite')
+    obs = env.reset()
+    env.render(filepath="control.txt.acmi")
+    agent1 = PursueAgent(agent_id=1)  # 'B0100'
+    agent0 = ManeuverTestAgent(agent_id=0,testType=test_type)
+    target_value = []
+    ego_value = []
+    deta_value = []
+    while True:
+        action0 = agent0.get_action(env, env.task)
+        action1 = agent1.get_action(env, env.task)
+        actions = [action0, action1]
+        obs, reward, done, info = env.step(actions)
+        env.render(filepath="control.txt.acmi")
+        if test_type == 'alt':
+            ego_value.append(env.agents['A0100'].get_property_value(c.position_h_sl_ft )* 0.3048)
+            target_value.append(agent0.get_target_alt())
+        elif test_type == 'heading':
+            ego_value.append(env.agents['A0100'].get_property_value(c.attitude_heading_true_rad))
+            target_value.append(agent0.get_target_headding())
+        else:
+            ego_value.append(env.agents['A0100'].get_property_value(c.velocities_u_mps)) #velocities_u_mps OR velocities_vc_mps
+            target_value.append(agent0.get_target_v())
+            deta_value.append(env.agents['A0100'].get_property_value(c.delta_velocities_u)) #delta_velocities_u
+        if np.array(done).all():
+            print(info)
+            break
+    plt.plot(target_value)
+    plt.plot(ego_value)
+    #plt.plot(deta_value)
+    draw_pid()
+    plt.savefig("compare_v.png")
+
+def draw_reward():
+    path='D:\\HCH\\LAG\\log\\reward_list.txt'
+    rewards = []
+
+    # 读取文件中的数字并存入数组
+    with open(path, 'r') as file:
+        for line in file:
+            try:
+                # 转换每行内容为浮点数并添加到数组
+                rewards.append(float(line.strip()))
+            except ValueError:
+                print(f"Skipping invalid line: {line.strip()}")
+    plt.plot(rewards)
+    plt.savefig("train_reward.png")
 
 
 if __name__ == '__main__':
-    test_maneuver()
+    # alt heading v 三种类型
+    test_maneuver('v')
+    #draw_reward()

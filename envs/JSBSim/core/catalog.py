@@ -337,6 +337,10 @@ class ExtraCatalog(Property, Enum):
             ExtraCatalog.velocities_w_mps,
             sim.get_property_value(JsbsimCatalog.velocities_w_fps) * 0.3048))
 
+    def update_delta_roll(sim):
+        value = (sim.get_property_value(ExtraCatalog.target_roll_rad) - sim.get_property_value(JsbsimCatalog.attitude_roll_rad)) /math.pi * 180
+        sim.set_property_value(ExtraCatalog.delta_roll, value)
+
     def update_delta_altitude(sim):
         value = (sim.get_property_value(ExtraCatalog.target_altitude_ft) - sim.get_property_value(JsbsimCatalog.position_h_sl_ft)) * 0.3048
         sim.set_property_value(ExtraCatalog.delta_altitude, value)
@@ -441,6 +445,15 @@ class ExtraCatalog(Property, Enum):
         access="R",
         update=update_delta_velocities,
     )
+    delta_roll = Property(
+        "position/delta-roll-to-target-m",
+        "delta roll to target [rad]",
+        -40000,
+        40000,
+        access="R",
+        update=update_delta_roll,
+    )
+
     # controls command
 
     throttle_cmd_dir = Property(
@@ -497,6 +510,12 @@ class ExtraCatalog(Property, Enum):
     )
 
     # target conditions
+    target_roll_rad = Property(
+        "tc/target-roll-rad",
+        "target roll [rad]]",
+        JsbsimCatalog.attitude_roll_rad.min,
+        JsbsimCatalog.attitude_roll_rad.max,
+    )
 
     target_altitude_ft = Property(
         "tc/h-sl-ft",

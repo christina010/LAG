@@ -83,12 +83,14 @@ class JSBSimRunner(Runner):
 
                 train_infos["average_episode_rewards"] = self.buffer.rewards.sum() / (self.buffer.masks == False).sum()
                 logging.info("average episode rewards is {}".format(train_infos["average_episode_rewards"]))
-
+                reward_file = 'D:/HCH/LAG/log/reward_list.txt'
+                with open(reward_file,'a') as file:
+                    file.write("{}\n".format(train_infos["average_episode_rewards"]))
                 if len(heading_turns_list):
                     train_infos["average_heading_turns"] = np.mean(heading_turns_list)
                     logging.info("average heading turns is {}".format(train_infos["average_heading_turns"]))
                 self.log_info(train_infos, self.total_num_steps)
-
+                ### 实验图reward， 控制效果图
             # eval
             if episode % self.eval_interval == 0 and episode != 0 and self.use_eval:
                 self.eval(self.total_num_steps)

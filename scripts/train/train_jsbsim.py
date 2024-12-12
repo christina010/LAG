@@ -196,7 +196,7 @@ if __name__ == "__main__":
     recurrent_hidden_size = 128
     recurrent_hidden_layers = 1
     data_chunk_length = 8
-
+    modle_dir='D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run8'
     # Set the environment variable for CUDA (this is the same as CUDA_VISIBLE_DEVICES=0 in the shell)
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -225,7 +225,8 @@ if __name__ == "__main__":
         "--act-hidden-size", act_hidden_size,
         "--recurrent-hidden-size", str(recurrent_hidden_size),
         "--recurrent-hidden-layers", str(recurrent_hidden_layers),
-        "--data-chunk-length", str(data_chunk_length)
+        "--data-chunk-length", str(data_chunk_length),
+        "--model-dir", str(modle_dir)
     ]
 
     # Filter out empty strings (like `--cuda` if `cuda` is False)

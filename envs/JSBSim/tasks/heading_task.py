@@ -42,6 +42,7 @@ class HeadingTask(BaseTask):
             c.velocities_w_mps,                 # 8. v_body_z   (unit: m/s)
             c.velocities_vc_mps,                # 9. vc        (unit: m/s)
         ]
+        # roll,alt  去掉，
         self.action_var = [
             c.fcs_aileron_cmd_norm,             # [-1., 1.]
             c.fcs_elevator_cmd_norm,            # [-1., 1.]

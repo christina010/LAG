@@ -113,4 +113,67 @@ def main(args):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(message)s")
-    main(sys.argv[1:])
+    # Fixed parameters (equivalent to the system args in the shell script)
+    env = "SingleControl"
+    scenario = "1/heading"
+    algo = "ppo"
+    exp = "v1"
+    seed = 5
+
+    # Additional parameters
+    n_training_threads = 1
+    n_rollout_threads = 4
+    cuda = True
+    log_interval = 1
+    save_interval = 1
+    num_mini_batch = 5
+    buffer_size = 3000
+    num_env_steps = 1e8
+    lr = 3e-4
+    gamma = 0.99
+    ppo_epoch = 4
+    clip_params = 0.2
+    max_grad_norm = 2
+    entropy_coef = 1e-3
+    hidden_size = "128 128"
+    act_hidden_size = "128 128"
+    recurrent_hidden_size = 128
+    recurrent_hidden_layers = 1
+    data_chunk_length = 8
+    modeldir='D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run5'
+    # Set the environment variable for CUDA (this is the same as CUDA_VISIBLE_DEVICES=0 in the shell)
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+    # Prepare the argument list to simulate the command line args
+    args = [
+        "--env-name", env,
+        "--algorithm-name", algo,
+        "--scenario-name", scenario,
+        "--experiment-name", exp,
+        "--seed", str(seed),
+        "--n-training-threads", str(n_training_threads),
+        "--n-rollout-threads", str(n_rollout_threads),
+        "--cuda" if cuda else "",  # Only add `--cuda` if `cuda` is True
+        "--log-interval", str(log_interval),
+        "--save-interval", str(save_interval),
+        "--num-mini-batch", str(num_mini_batch),
+        "--buffer-size", str(buffer_size),
+        "--num-env-steps", str(num_env_steps),
+        "--lr", str(lr),
+        "--gamma", str(gamma),
+        "--ppo-epoch", str(ppo_epoch),
+        "--clip-params", str(clip_params),
+        "--max-grad-norm", str(max_grad_norm),
+        "--entropy-coef", str(entropy_coef),
+        "--hidden-size", hidden_size,
+        "--act-hidden-size", act_hidden_size,
+        "--recurrent-hidden-size", str(recurrent_hidden_size),
+        "--recurrent-hidden-layers", str(recurrent_hidden_layers),
+        "--data-chunk-length", str(data_chunk_length),
+        "--model-dir",str(modeldir)
+    ]
+
+    args = [arg for arg in args if arg]
+    # Simulate passing these as command line arguments to the main function
+    argv = ["render_jsbsim.py"] + args  # Simulate the args being passed from the command line
+    main(argv[1:])
