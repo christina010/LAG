@@ -32,10 +32,10 @@ class HeadingTask(BaseTask):
     def load_variables(self):
         self.state_var = [
             c.delta_altitude,                   # 0. delta_h   (unit: m)
-            c.delta_heading,                    # 1. delta_heading  (unit: °)
-            c.delta_velocities_u,               # 2. delta_v   (unit: m/s)
+             c.delta_roll,                       # 1. delta_heading  (unit: °)    #设置为roll unit： deg
+            c.delta_velocities_u,               # 1. delta_v   (unit: m/s)
             c.position_h_sl_m,                  # 3. altitude  (unit: m)
-            c.attitude_roll_rad,                # 4. roll      (unit: rad)
+            c.attitude_phi_rad,                # 4. roll      (unit: rad)
             c.attitude_pitch_rad,               # 5. pitch     (unit: rad)
             c.velocities_u_mps,                 # 6. v_body_x   (unit: m/s)
             c.velocities_v_mps,                 # 7. v_body_y   (unit: m/s)
@@ -53,7 +53,7 @@ class HeadingTask(BaseTask):
             c.position_long_gc_deg,
             c.position_lat_geod_deg,
             c.position_h_sl_m,
-            c.attitude_roll_rad,
+            c.attitude_phi_rad,
             c.attitude_pitch_rad,
             c.attitude_heading_true_rad,
         ]
@@ -72,7 +72,7 @@ class HeadingTask(BaseTask):
         observation(dim 12):
             0. ego delta altitude      (unit: km)
             1. ego delta heading       (unit rad)
-            2. ego delta velocities_u  (unit: mh)
+            1. ego delta velocities_u  (unit: mh)
             3. ego_altitude            (unit: 5km)
             4. ego_roll_sin
             5. ego_roll_cos
@@ -86,8 +86,8 @@ class HeadingTask(BaseTask):
         obs = np.array(env.agents[agent_id].get_property_values(self.state_var))
         norm_obs = np.zeros(12)
         norm_obs[0] = obs[0] / 1000         # 0. ego delta altitude (unit: 1km)
-        norm_obs[1] = obs[1] / 180 * np.pi  # 1. ego delta heading  (unit rad)
-        norm_obs[2] = obs[2] / 340          # 2. ego delta velocities_u (unit: mh)
+        norm_obs[1] = obs[1] /180 * np.pi  # 1. ego delta heading  (unit rad) # 重新设置为roll
+        norm_obs[2] = obs[2] / 340          # 1. ego delta velocities_u (unit: mh)
         norm_obs[3] = obs[3] / 5000         # 3. ego_altitude   (unit: 5km)
         norm_obs[4] = np.sin(obs[4])        # 4. ego_roll_sin
         norm_obs[5] = np.cos(obs[4])        # 5. ego_roll_cos

@@ -225,7 +225,7 @@ class TestJSBSimRunner:
         args += ' --experiment-name pytest --seed 1 --n-training-threads 1 --n-rollout-threads 5 --cuda' \
                 ' --log-interval 1 --save-interval 1 --use-eval --eval-interval 1 --eval-episodes 10' \
                 ' --num-mini-batch 5 --buffer-size 1000 --num-env-steps 1e4' \
-                ' --lr 3e-4 --gamma 0.99 --ppo-epoch 4 --clip-params 0.2 --max-grad-norm 2 --entropy-coef 1e-3' \
+                ' --lr 3e-4 --gamma 0.99 --ppo-epoch 4 --clip-params 0.1 --max-grad-norm 1 --entropy-coef 1e-3' \
                 ' --hidden-size 32 --act-hidden-size 32 --recurrent-hidden-size 32 --recurrent-hidden-layers 1 --data-chunk-length 8'
         args = args.split(' ')
         parser = get_config()

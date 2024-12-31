@@ -35,7 +35,7 @@ class BaselineAgent(ABC):
         Baseline  observation:
         #  0. ego delta altitude      (unit: 1km)
         #  1. ego delta heading       (unit rad)
-        #  2. ego delta velocities_u  (unit: mh)
+        #  1. ego delta velocities_u  (unit: mh)
         #  3. ego_altitude            (unit: 5km)
         #  4. ego_roll_sin
         #  5. ego_roll_cos

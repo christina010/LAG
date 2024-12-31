@@ -1,3 +1,5 @@
+import math
+
 from .env_base import BaseEnv
 from ..tasks.heading_task import HeadingTask
 
@@ -33,14 +35,17 @@ class SingleControlEnv(BaseEnv):
         init_heading = self.np_random.uniform(0., 180.)
         init_altitude = self.np_random.uniform(14000., 30000.)
         init_velocities_u = self.np_random.uniform(400., 1200.)
+        init_roll =self.np_random.uniform(-60,60)
         for init_state in self.init_states:
             init_state.update({
                 'ic_psi_true_deg': init_heading,
                 'ic_h_sl_ft': init_altitude,
                 'ic_u_fps': init_velocities_u,
+                'ic_phi_deg': init_roll,
                 'target_heading_deg': init_heading,
                 'target_altitude_ft': init_altitude,
                 'target_velocities_u_mps': init_velocities_u * 0.3048,
+                'target_roll_deg':init_roll,
             })
         for idx, sim in enumerate(self.agents.values()):
             sim.reload(self.init_states[idx])

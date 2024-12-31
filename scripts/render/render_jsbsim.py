@@ -140,7 +140,7 @@ if __name__ == "__main__":
     recurrent_hidden_size = 128
     recurrent_hidden_layers = 1
     data_chunk_length = 8
-    modeldir='D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run5'
+    modeldir='D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run4'
     # Set the environment variable for CUDA (this is the same as CUDA_VISIBLE_DEVICES=0 in the shell)
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 

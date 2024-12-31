@@ -29,7 +29,7 @@ class JsbsimCatalog(Property, Enum):
     attitude_theta_deg = Property("attitude/theta-deg", "deg", access="R")
     attitude_roll_rad = Property("attitude/roll-rad", "roll [rad]", -math.pi, math.pi, access="R")
     attitude_phi_rad = Property("attitude/phi-rad", "rad", access="R")
-    attitude_phi_deg = Property("attitude/phi-deg", "deg", access="R")
+    attitude_phi_deg = Property("attitude/phi-deg", "deg",-72,72, access="R")
     attitude_heading_true_rad = Property("attitude/heading-true-rad", "rad", access="R")
     attitude_psi_deg = Property("attitude/psi-deg", "heading [deg]", 0, 360, access="R")
     attitude_psi_rad = Property("attitude/psi-rad", "rad", access="R")
@@ -338,7 +338,7 @@ class ExtraCatalog(Property, Enum):
             sim.get_property_value(JsbsimCatalog.velocities_w_fps) * 0.3048))
 
     def update_delta_roll(sim):
-        value = (sim.get_property_value(ExtraCatalog.target_roll_rad) - sim.get_property_value(JsbsimCatalog.attitude_roll_rad)) /math.pi * 180
+        value = (sim.get_property_value(ExtraCatalog.target_roll_deg) - sim.get_property_value(JsbsimCatalog.attitude_phi_deg))
         sim.set_property_value(ExtraCatalog.delta_roll, value)
 
     def update_delta_altitude(sim):
@@ -447,9 +447,9 @@ class ExtraCatalog(Property, Enum):
     )
     delta_roll = Property(
         "position/delta-roll-to-target-m",
-        "delta roll to target [rad]",
-        -40000,
-        40000,
+        "delta roll to target [degree]",
+        -90,
+        90,
         access="R",
         update=update_delta_roll,
     )
@@ -510,11 +510,11 @@ class ExtraCatalog(Property, Enum):
     )
 
     # target conditions
-    target_roll_rad = Property(
-        "tc/target-roll-rad",
-        "target roll [rad]]",
-        JsbsimCatalog.attitude_roll_rad.min,
-        JsbsimCatalog.attitude_roll_rad.max,
+    target_roll_deg = Property(
+        "tc/target-roll-deg",
+        "target roll [degree]]",
+        JsbsimCatalog.attitude_phi_deg.min ,
+        JsbsimCatalog.attitude_phi_deg.max ,
     )
 
     target_altitude_ft = Property(
