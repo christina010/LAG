@@ -1,5 +1,5 @@
 # task config
-task: singlecombat
+task: hierarchical_singlecombat
 
 # simulation config
 sim_freq: 60
@@ -12,11 +12,21 @@ acceleration_limit_x: 10.0
 acceleration_limit_y: 10.0
 acceleration_limit_z: 10.0
 
+# baseline agent
+use_baseline: True
+baseline_type: leader
+
 # aircraft config
 aircraft_configs: {
   A0100: {
     color: Red,
     model: f16,
+    max_heading_increment: 180,       # degree
+    max_altitude_increment: 7000,     # feet
+    max_velocities_u_increment: 100,  # meter
+    max_roll_increment:  72,      # degree
+    check_interval: 30,               # second
+    roll_mod: 72, #degree
     init_state: {
       ic_long_gc_deg: 120.0,
       ic_lat_geod_deg: 60.0,

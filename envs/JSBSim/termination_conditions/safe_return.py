@@ -36,11 +36,11 @@ class SafeReturn(BaseTerminationCondition):
             self.log(f'{agent_id} has crashed! Total Steps={env.current_step}')
             return True, False, info
 
-        # all the enemy-aircrafts has been destroyed while current aircraft is not under attack
-        elif all([not enemy.is_alive for enemy in env.agents[agent_id].enemies]) \
-                and all([not missile.is_alive for missile in env.agents[agent_id].under_missiles]):
-            self.log(f'{agent_id} mission completed! Total Steps={env.current_step}')
-            return True, True, info
+        # # all the enemy-aircrafts has been destroyed while current aircraft is not under attack
+        # elif all([not enemy.is_alive for enemy in env.agents[agent_id].enemies]) \
+        #         and all([not missile.is_alive for missile in env.agents[agent_id].under_missiles]):
+        #     self.log(f'{agent_id} mission completed! Total Steps={env.current_step}')
+        #     return True, True, info
 
         else:
             return False, False, info

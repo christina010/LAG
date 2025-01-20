@@ -1,4 +1,6 @@
 import numpy as np
+import math
+from ..core.catalog import Catalog as c
 from .env_base import BaseEnv
 from ..tasks import SingleCombatTask, SingleCombatDodgeMissileTask, HierarchicalSingleCombatDodgeMissileTask, \
     HierarchicalSingleCombatShootTask, SingleCombatShootMissileTask, HierarchicalSingleCombatTask
@@ -39,6 +41,7 @@ class SingleCombatEnv(BaseEnv):
         return self._pack(obs)
 
     def reset_simulators(self):
+        ## todo：不换边
         # switch side
         if self.init_states is None:
             self.init_states = [sim.init_state.copy() for sim in self.agents.values()]

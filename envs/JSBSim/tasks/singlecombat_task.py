@@ -196,6 +196,8 @@ class SingleCombatTask(BaseTask):
             return DodgeMissileAgent()
         elif name == 'straight':
             return StraightFlyAgent()
+        elif name =='leader':
+            return  LeaderAgent()
         else:
             raise NotImplementedError
 
@@ -210,6 +212,20 @@ class HierarchicalSingleCombatTask(SingleCombatTask):
         self.norm_delta_heading = np.array([-np.pi / 6, -np.pi / 12, 0, np.pi / 12, np.pi / 6])
         self.norm_delta_velocity = np.array([0.05, 0, -0.05])
 
+        self.reward_functions = [
+            AltitudeReward(self.config),
+            PostureReward(self.config),
+            #EventDrivenReward(self.config)
+        ]
+
+        self.termination_conditions = [
+            LowAltitude(self.config),
+            ExtremeState(self.config),
+            Overload(self.config),
+            SafeReturn(self.config),
+            Timeout(self.config),
+        ]
+
     def load_action_space(self):
         self.action_space = spaces.MultiDiscrete([3, 5, 3])
 
@@ -217,7 +233,7 @@ class HierarchicalSingleCombatTask(SingleCombatTask):
         """Convert high-level action into low-level action.
         """
         if self.use_baseline and agent_id in env.enm_ids:
-            action = self.baseline_agent.get_action(env.agents[agent_id])
+            action = self.baseline_agent.get_action(env.agents[agent_id],env)
             return action
         else:
             # generate low-level input_obs
@@ -298,7 +314,7 @@ class BaselineAgent:
     def reset(self):
         self.rnn_states = np.zeros((1, 1, 128))
 
-    def set_delta_value(self, sim: AircraftSimulator):
+    def set_delta_value(self, sim: AircraftSimulator,env):
         raise NotImplementedError
 
     def get_observation(self, sim: AircraftSimulator, delta_value):
@@ -319,8 +335,8 @@ class BaselineAgent:
         norm_obs = np.expand_dims(norm_obs, axis=0)  # dim: (1,12)
         return norm_obs
 
-    def get_action(self, sim: AircraftSimulator):
-        delta_value = self.set_delta_value(sim)
+    def get_action(self, sim: AircraftSimulator,env):
+        delta_value = self.set_delta_value(sim,env)
         observation = self.get_observation(sim, delta_value)
         _action, self.rnn_states = self.actor(observation, self.rnn_states)
         action = _action.detach().cpu().numpy().squeeze()
@@ -390,6 +406,61 @@ class ManeuverAgent(BaselineAgent):
             delta_heading = self.init_heading  - cur_heading
             delta_altitude = 6096 - sim.get_property_value(c.position_h_sl_m)
             delta_velocity = 243 - sim.get_property_value(c.velocities_u_mps)
+
+        return np.array([delta_altitude, delta_heading, delta_velocity])
+
+class LeaderAgent(BaselineAgent):
+    def __init__(self) -> None:
+        super().__init__()
+        self.turn_interval = 30
+        self.dodge_missile = False # if set true, start turn when missile is detected
+        self.target_heading=0
+        self.target_altitude = 6096
+        self.target_velocity = 243
+        self.step = 0
+        self.max_heading_increment = 180
+        self.max_roll_increment = 7000
+        self.max_altitude_increment = 100
+        self.max_velocities_u_increment = 72
+
+
+    def reset(self):
+        self.step = 0
+        self.rnn_states = np.zeros((1, 1, 128))
+        self.init_heading = None
+        self.target_heading = 0
+        self.target_altitude = 6096
+        self.target_velocity = 243
+
+
+    def reset_target_value(self, sim: AircraftSimulator,env):
+        if int(sim.get_property_value(c.simulation_sim_time_sec)/self.turn_interval) > self.step:
+            self.step+=1
+            delta = 1.0
+            delta_heading = env.np_random.uniform(-delta, delta) * self.max_heading_increment
+            delta_altitude = env.np_random.uniform(-delta, delta) * self.max_altitude_increment
+            delta_velocities_u = env.np_random.uniform(-delta, delta) * self.max_velocities_u_increment
+            new_heading = sim.get_property_value(c.target_heading_deg) + delta_heading
+            new_heading = (new_heading + 360) % 360
+            new_altitude = sim.get_property_value(c.target_altitude_ft) + delta_altitude
+            new_altitude = max(new_altitude, 5000)  # assert the value in safe region
+            new_velocities_u = sim.get_property_value(c.target_velocities_u_mps) + delta_velocities_u
+            new_velocities_u = max(new_velocities_u, 120.)  # assert the value in safe region
+            self.target_heading = new_heading
+            self.target_altitude = new_altitude
+            self.target_velocity = new_velocities_u
+
+
+
+    def set_delta_value(self, sim: AircraftSimulator,env):
+        self.reset_target_value(sim,env)
+        #step_list = np.arange(1, len(self.target_heading_list)+1) * self.turn_interval / 0.2
+        cur_heading = sim.get_property_value(c.attitude_heading_true_rad)
+        if self.init_heading is None:
+            self.init_heading = cur_heading
+        delta_heading =  self.target_heading - cur_heading
+        delta_altitude = self.target_altitude - sim.get_property_value(c.position_h_sl_m)
+        delta_velocity = self.target_velocity - sim.get_property_value(c.velocities_u_mps)
 
         return np.array([delta_altitude, delta_heading, delta_velocity])
 

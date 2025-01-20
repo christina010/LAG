@@ -15,22 +15,21 @@ from envs.JSBSim.core.catalog import Catalog as c
 from envs.JSBSim.utils.utils import in_range_rad, get_root_dir, in_range_rad
 from envs.JSBSim.envs import SingleCombatEnv, SingleControlEnv
 from envs.JSBSim.model.baseline_actor import BaselineActor
-
 class BaselineAgent(ABC):
     def __init__(self, agent_id) -> None:
-        #self.model_path = get_root_dir() + '/model/baseline_model.pt'
-        #self.actor = BaselineActor()
+        self.model_path = get_root_dir() + '/model/baseline_model.pt'
+        self.actor = BaselineActor()
         # self.model_path = get_root_dir() + '/model/baseline_model.pt'
         # self.actor = BaselineActor()
         #self.model_path = 'D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run4\\actor_latest.pt'  # get_root_dir() + '/model/baseline_model.pt'
-        self.model_path = "D:\\HCH\\LAG\\results\\SingleControl\\1\\heading\\ppo\\v1\\run10\\actor_latest.pt"
-        self.actor = BaselineActor(use_mlp_actlayer=True)
+        #self.model_path = "D:\\HCH\\LAG\\results\\SingleControl\\1\\heading\\ppo\\v1\\run10\\actor_latest.pt"
+        # self.actor = BaselineActor(use_mlp_actlayer=True)
         self.actor.load_state_dict(torch.load(self.model_path, weights_only=True))
         self.actor.eval()
         self.agent_id = agent_id
         self.state_var = [
             c.delta_altitude,                   #  0. delta_h   (unit: m)
-            c.delta_roll,                    #  1. delta_heading  (unit: °)
+            c.delta_heading,                    #  1. delta_heading  (unit: °)
             c.delta_velocities_u,               #  2. delta_v   (unit: m/s)
             c.attitude_roll_rad,                #  3. roll      (unit: rad)
             c.attitude_pitch_rad,               #  4. pitch     (unit: rad)
@@ -63,10 +62,11 @@ class BaselineAgent(ABC):
 
     def get_observation(self, env, task, delta_value):
         uid = list(env.agents.keys())[self.agent_id]
+       # uid=self.agent_id
         obs = env.agents[uid].get_property_values(self.state_var)
         norm_obs = np.zeros(12)
         norm_obs[0] = delta_value[0] / 1000          #  0. ego delta altitude  (unit: 1km)
-        norm_obs[1] = norm_obs[1] = delta_value[1] / 180*np.pi   #  1. ego delta heading   (unit rad) norm_obs[1] = delta_value[1] / 180*np.pi
+        norm_obs[1] =  in_range_rad(delta_value[1])     #  1. ego delta heading   (unit rad) norm_obs[1] = delta_value[1] / 180*np.pi
         norm_obs[2] = delta_value[2] / 340           #  2. ego delta velocities_u  (unit: mh)
         norm_obs[3] = obs[9] / 5000                  #  3. ego_altitude (unit: km)
         norm_obs[4] = np.sin(obs[3])                 #  4. ego_roll_sin
@@ -252,6 +252,68 @@ class ManeuverAgent(BaselineAgent):
     def get_target_headding(self):
         return self.target_headding
 
+
+class LeaderAgent(BaselineAgent):
+    def __init__(self,agent_id) -> None:
+        super().__init__(agent_id)
+        self.turn_interval = 30
+        self.dodge_missile = False # if set true, start turn when missile is detected
+        self.target_heading=0
+        self.target_altitude = 6000
+        self.target_velocity = 243
+        self.step = 0
+        self.max_heading_increment = 180
+        self.max_roll_increment = 7000
+        self.max_altitude_increment = 100
+        self.max_velocities_u_increment = 72
+        self.init_heading = None
+
+
+
+    def reset(self):
+        self.step = 0
+        self.rnn_states = np.zeros((1, 1, 128))
+        self.init_heading = None
+        self.target_heading = 0
+        self.target_altitude = 6096
+        self.target_velocity = 243
+
+
+    def reset_target_value(self,sim,env):
+        if int(sim.get_property_value(c.simulation_sim_time_sec)/self.turn_interval) > self.step:
+            self.step+=1
+            delta = 1.0
+            delta_heading = env.np_random.uniform(-delta, delta) * self.max_heading_increment
+            delta_altitude = env.np_random.uniform(-delta, delta) * self.max_altitude_increment
+            delta_velocities_u = env.np_random.uniform(-delta, delta) * self.max_velocities_u_increment
+            new_heading = sim.get_property_value(c.target_heading_deg) + delta_heading
+            new_heading = (new_heading + 360) % 360
+            new_altitude = sim.get_property_value(c.target_altitude_ft) + delta_altitude
+            new_altitude = max(new_altitude, 5000)  # assert the value in safe region
+            new_velocities_u = sim.get_property_value(c.target_velocities_u_mps) + delta_velocities_u
+            new_velocities_u = max(new_velocities_u, 120.)  # assert the value in safe region
+            self.target_heading = new_heading
+            self.target_altitude = new_altitude
+            self.target_velocity = new_velocities_u
+
+
+
+    def set_delta_value(self,env,task):
+        uid = list(env.agents.keys())[self.agent_id]
+        sim=env.agents[uid]
+        self.reset_target_value(sim,env)
+
+        cur_heading = sim.get_property_value(c.attitude_heading_true_rad)
+        if self.init_heading is None:
+            self.init_heading = cur_heading
+
+        delta_heading =  self.target_heading - cur_heading
+        #delta_heading =  self.target_heading - cur_heading
+        delta_altitude = self.target_altitude - sim.get_property_value(c.position_h_sl_m)
+        delta_velocity = self.target_velocity - sim.get_property_value(c.velocities_u_mps)
+        #return np.array([0,0,0])
+        return np.array([delta_altitude, delta_heading, delta_velocity])
+
 def test_maneuver_heading():
     env = SingleCombatEnv(config_name='1v1/NoWeapon/test/opposite')
     obs = env.reset()
@@ -278,6 +340,23 @@ def test_maneuver_heading():
     plt.plot(ego_heading)
     plt.savefig('error_heading.png')
 
+def test_leader():
+    env = SingleCombatEnv(config_name='1v1/NoWeapon/test/opposite')
+    #env = SingleControlEnv('1/heading')
+    obs = env.reset()
+    env.render(filepath="control.txt.acmi")
+    agent1 = LeaderAgent(agent_id=1)
+    ##agent1 = ManeuverAgent(agent_id=1, maneuver='triangle')
+    agent0 = ManeuverAgent(agent_id=0, maneuver='triangle')
+    while True:
+        action0 = agent0.get_action(env,env.task)
+        action1 = agent1.get_action(env,env.task)
+        actions = [action0, action1]
+        obs, reward, done, info = env.step(actions)
+        env.render(filepath="control.txt.acmi")
+        if np.array(done).all():
+            print(info)
+            break
 
 
 def draw_pid():
@@ -423,9 +502,12 @@ def moving_average(data, window_size):
     y_add=y[-len_add:]
     # 使用 np.convolve 计算滑动平均
     return np.concatenate((y,y_add))
+
+
 if __name__ == '__main__':
     # alt heading v 三种类型
-    #test_maneuver('roll')
+   # test_maneuver('alt')
     #draw_roll_pic()
-
-    draw_reward()
+    test_leader()
+    #test_maneuver_heading()
+    #draw_reward()
