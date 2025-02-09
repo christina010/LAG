@@ -17,7 +17,7 @@ from envs.JSBSim.envs import SingleCombatEnv, SingleControlEnv
 from envs.JSBSim.model.baseline_actor import BaselineActor
 class BaselineAgent(ABC):
     def __init__(self, agent_id) -> None:
-        self.model_path = get_root_dir() + '/model/baseline_model.pt'
+        self.model_path = "C:\\Users\\hch\\Desktop\\LGA\\LAG\\envs\\JSBSim\\model\\baseline_model.pt" #get_root_dir() + '/model/baseline_model.pt'
         self.actor = BaselineActor()
         # self.model_path = get_root_dir() + '/model/baseline_model.pt'
         # self.actor = BaselineActor()
@@ -432,7 +432,7 @@ def test_maneuver(test_type):
     # save_to_txt(value, './record/v/pid.txt')
     # save_to_txt(target_value,'./record/v/target.txt')
 
-    plt.plot(ego_value, label='HDC-PPO', color='red')
+    plt.plot(ego_value, label='HGC-PPO', color='red')
     plt.plot(value, label='PID', color='green')
     plt.legend()
     plt.ylabel("Roll degree")
@@ -440,7 +440,7 @@ def test_maneuver(test_type):
     plt.savefig("compare_roll.png")
 
 def draw_reward():
-    path= 'D:\\HCH\\LAG\\log\\reward_list1.txt'
+    path= 'D:\\HCH\\LAG\\log\\reward_list.txt'
     #path = 'D:\\HCH\\LAG\\log\\train_reward_list.txt'
     rewards = []
     rewards2 = []
@@ -506,8 +506,8 @@ def moving_average(data, window_size):
 
 if __name__ == '__main__':
     # alt heading v 三种类型
-   # test_maneuver('alt')
+    test_maneuver('alt')
     #draw_roll_pic()
-    test_leader()
+    #test_leader()
     #test_maneuver_heading()
     #draw_reward()

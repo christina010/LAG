@@ -1,10 +1,12 @@
+import os
+import sys
 import time
 import torch
 import logging
 import numpy as np
 from typing import List
 from .base_runner import Runner, ReplayBuffer
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 def _t2n(x):
     return x.detach().cpu().numpy()
@@ -83,7 +85,8 @@ class JSBSimRunner(Runner):
 
                 train_infos["average_episode_rewards"] = self.buffer.rewards.sum() / (self.buffer.masks == False).sum()
                 logging.info("average episode rewards is {}".format(train_infos["average_episode_rewards"]))
-                reward_file = 'D:/HCH/LAG/log/reward_list.txt'
+                reward_file = 'C:/Users/hch/Desktop/LGA/LAG/log/reward_list.txt'
+
                 with open(reward_file,'a') as file:
                     file.write("{}\n".format(train_infos["average_episode_rewards"]))
                 if len(heading_turns_list):
@@ -206,3 +209,5 @@ class JSBSimRunner(Runner):
         torch.save(policy_actor_state_dict, str(self.save_dir) + '/actor_latest.pt')
         policy_critic_state_dict = self.policy.critic.state_dict()
         torch.save(policy_critic_state_dict, str(self.save_dir) + '/critic_latest.pt')
+
+

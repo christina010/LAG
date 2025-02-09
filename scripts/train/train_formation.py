@@ -13,7 +13,7 @@ import setproctitle
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from config import get_config
 from runner.share_jsbsim_runner import ShareJSBSimRunner
-from envs.JSBSim.envs import SingleCombatEnv, SingleControlEnv, MultipleCombatEnv
+from envs.JSBSim.envs.FormationEnv import FormationEnv
 from envs.env_wrappers import SubprocVecEnv, DummyVecEnv, ShareSubprocVecEnv, ShareDummyVecEnv
 
 
@@ -21,19 +21,15 @@ def make_train_env(all_args):
     def get_env_fn(rank):
         def init_env():
             print(all_args)
-            if all_args.env_name == "SingleCombat":
-                env = SingleCombatEnv(all_args.scenario_name)
-            elif all_args.env_name == "SingleControl":
-                env = SingleControlEnv(all_args.scenario_name)
-            elif all_args.env_name == "MultipleCombat":
-                env = MultipleCombatEnv(all_args.scenario_name)
+            if all_args.env_name == "FormationEnv":
+                env = FormationEnv(all_args.scenario_name)
             else:
                 logging.error("Can not support the " + all_args.env_name + "environment.")
                 raise NotImplementedError
             env.seed(all_args.seed + rank * 1000)
             return env
         return init_env
-    if all_args.env_name == "MultipleCombat":
+    if all_args.env_name == "MultipleCombat" or all_args.env_name == "Formation_env":
         if all_args.n_rollout_threads == 1:
             return ShareDummyVecEnv([get_env_fn(0)])
         else:
@@ -48,28 +44,25 @@ def make_train_env(all_args):
 def make_eval_env(all_args):
     def get_env_fn(rank):
         def init_env():
-            if all_args.env_name == "SingleCombat":
-                env = SingleCombatEnv(all_args.scenario_name)
-            elif all_args.env_name == "SingleControl":
-                env = SingleControlEnv(all_args.scenario_name)
-            elif all_args.env_name == "MultipleCombat":
-                env = MultipleCombatEnv(all_args.scenario_name)
+            if all_args.env_name == "Formation_env":
+                env = FormationEnv(all_args.scenario_name)
             else:
                 logging.error("Can not support the " + all_args.env_name + "environment.")
                 raise NotImplementedError
             env.seed(all_args.seed * 50000 + rank * 1000)
             return env
         return init_env
-    if all_args.env_name == "MultipleCombat":
-        if all_args.n_eval_rollout_threads == 1:
+
+    if all_args.env_name == "MultipleCombat" or all_args.env_name == "Formation_env":
+        if all_args.n_rollout_threads == 1:
             return ShareDummyVecEnv([get_env_fn(0)])
         else:
-            return ShareSubprocVecEnv([get_env_fn(i) for i in range(all_args.n_eval_rollout_threads)])
+            return ShareSubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
     else:
-        if all_args.n_eval_rollout_threads == 1:
+        if all_args.n_rollout_threads == 1:
             return DummyVecEnv([get_env_fn(0)])
         else:
-            return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_eval_rollout_threads)])
+            return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
 
 
 def parse_args(args, parser):
@@ -147,7 +140,7 @@ def main(args):
     }
 
     # run experiments
-    if all_args.env_name == "MultipleCombat":
+    if all_args.env_name == "MultipleCombat" or all_args.env_name == "Formation_env":
         runner = ShareJSBSimRunner(config)
     else:
         if all_args.use_selfplay:
@@ -170,13 +163,11 @@ def main(args):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     # Fixed parameters (equivalent to the system args in the shell script)
-    #
-    env = "SingleCombat"
-    scenario = "1v1/NoWeapon/Selfplay"
+    env = "FormationEnv"
+    scenario = "1/formation"
     algo = "ppo"
     exp = "v1"
-    seed = 1
-
+    seed = 5
     # Additional parameters
     n_training_threads = 1
     n_rollout_threads = 32
@@ -227,7 +218,6 @@ if __name__ == "__main__":
         "--recurrent-hidden-size", str(recurrent_hidden_size),
         "--recurrent-hidden-layers", str(recurrent_hidden_layers),
         "--data-chunk-length", str(data_chunk_length)
-       # "--model-dir", str(modle_dir)
     ]
 
     # Filter out empty strings (like `--cuda` if `cuda` is False)

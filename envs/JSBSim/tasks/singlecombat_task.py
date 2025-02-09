@@ -206,7 +206,8 @@ class HierarchicalSingleCombatTask(SingleCombatTask):
     def __init__(self, config: str):
         super().__init__(config)
         self.lowlevel_policy = BaselineActor()
-        self.lowlevel_policy.load_state_dict(torch.load(get_root_dir() + '/model/baseline_model.pt', map_location=torch.device('cpu'), weights_only=True))
+        self.lowlevel_policy.load_state_dict(torch.load("C:\\Users\\hch\\Desktop\\LGA\\LAG\\envs\\JSBSim\\model\\baseline_model.pt", map_location=torch.device('cuda'), weights_only=True))
+        print("modle in " + get_root_dir() + "/model/baseline_model.pt")
         self.lowlevel_policy.eval()
         self.norm_delta_altitude = np.array([0.1, 0, -0.1])
         self.norm_delta_heading = np.array([-np.pi / 6, -np.pi / 12, 0, np.pi / 12, np.pi / 6])
@@ -252,10 +253,10 @@ class HierarchicalSingleCombatTask(SingleCombatTask):
             self._inner_rnn_states[agent_id] = _rnn_states.detach().cpu().numpy()
             # normalize low-level action
             norm_act = np.zeros(4)
-            norm_act[0] = action[0] / 20 - 1.
-            norm_act[1] = action[1] / 20 - 1.
-            norm_act[2] = action[2] / 20 - 1.
-            norm_act[3] = action[3] / 58 + 0.4
+            norm_act[0] = action[0] / 41 - 1.
+            norm_act[1] = action[1] / 41 - 1.
+            norm_act[2] = action[2] / 41 - 1.
+            norm_act[3] = action[3] / 30 + 0.4
             return norm_act
 
     def reset(self, env):

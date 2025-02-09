@@ -108,3 +108,25 @@ class BaselineActor(nn.Module):
         x, h_s = self.rnn(x, h_s)
         actions = self.act(x)
         return actions, h_s
+
+
+class DriverActor(nn.Module):
+    def __init__(self, input_dim=15, use_mlp_actlayer=False) -> None:
+        super().__init__()
+        self.tpdv = dict(dtype=torch.float32, device=torch.device('cpu'))
+        self.base = MLPBase(input_dim, '128 128')
+        self.rnn = GRULayer(128, 128, 1)
+        self.act = ACTLayer(128, [3,5,3], use_mlp_actlayer)
+        self.to(torch.device('cpu'))
+
+    def check(self, input):
+        output = torch.from_numpy(input) if type(input) == np.ndarray else input
+        return output
+
+    def forward(self, obs, rnn_states):
+        x = check(obs).to(**self.tpdv)
+        h_s = check(rnn_states).to(**self.tpdv)
+        x = self.base(x)
+        x, h_s = self.rnn(x, h_s)
+        actions = self.act(x)
+        return actions, h_s

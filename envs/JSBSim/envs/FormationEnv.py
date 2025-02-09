@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Tuple, Dict, Any
 from .env_base import BaseEnv
-from ..tasks.multiplecombat_task import HierarchicalMultipleCombatShootTask, HierarchicalMultipleCombatTask, MultipleCombatTask
+from ..tasks.FormationTask import FormationTask
 
 
 class FormationEnv(BaseEnv):
@@ -12,21 +12,22 @@ class FormationEnv(BaseEnv):
         super().__init__(config_name)
         # Env-Specific initialization here!
         self._create_records = False
+        self.obstacle_set = None
+    
+    def reset_obstacle(self):
+        pass
 
     @property
     def share_observation_space(self):
         return self.task.share_observation_space
 
     def load_task(self):
-        taskname = getattr(self.config, 'task', None)
-        if taskname == 'multiplecombat':
-            self.task = MultipleCombatTask(self.config)
-        elif taskname == 'hierarchical_multiplecombat':
-            self.task = HierarchicalMultipleCombatTask(self.config)
-        elif taskname == 'hierarchical_multiplecombat_shoot':
-            self.task = HierarchicalMultipleCombatShootTask(self.config)
-        else:
-            raise NotImplementedError(f"Unknown taskname: {taskname}")
+        self.task = FormationTask(self.config)
+        # taskname = getattr(self.config, 'task', None)
+        # if taskname == 'formation_task':
+        #     self.task = FormationTask(self.config)
+        # else:
+        #     raise NotImplementedError(f"Unknown taskname: {taskname}")
 
     def reset(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """Resets the state of the environment and returns an initial observation.
@@ -40,6 +41,9 @@ class FormationEnv(BaseEnv):
         self.task.reset(self)
         obs = self.get_obs()
         share_obs = self.get_state()
+        self.reset_obstacle()
+        ### share_obs 和 obs 需要看一下
+
         return self._pack(obs), self._pack(share_obs)
 
     def reset_simulators(self):
@@ -73,6 +77,7 @@ class FormationEnv(BaseEnv):
         for agent_id in self.agents.keys():
             a_action = self.task.normalize_action(self, agent_id, action[agent_id])
             self.agents[agent_id].set_property_values(self.task.action_var, a_action)
+        # 如果需要某个固定agent做不同动作在这里重新set
         # run simulation
         for _ in range(self.agent_interaction_steps):
             for sim in self._jsbsims.values():
