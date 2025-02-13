@@ -1,5 +1,5 @@
 # task config
-task: singlecombat
+task: hierarchical_singlecombat
 
 # simulation config
 sim_freq: 60
@@ -14,7 +14,7 @@ acceleration_limit_z: 10.0
 
 # aircraft config
 use_baseline: true
-baseline_type: pursue
+baseline_type: leader
 aircraft_configs: {
   A0100: {
     color: Red,
@@ -32,10 +32,10 @@ aircraft_configs: {
     model: f16,
     init_state: {
       ic_h_sl_ft: 20000,
-      ic_lat_geod_deg: 60.05,
+      ic_lat_geod_deg: 60.01,
       ic_long_gc_deg: 120.0,
-      ic_psi_true_deg: 180.0,
-      ic_u_fps: 800.0,
+      ic_psi_true_deg: 0.0,
+      ic_u_fps: 500.0,
     },
   }
 }
@@ -43,15 +43,15 @@ aircraft_configs: {
 battle_field_center: [120.0, 60.0, 0.0]
 
 # reward config
-PostureReward_scale: 100.0
-PostureReward_potential: true
-PostureReward_orientation_version: v2
-PostureReward_range_version: v3
-PostureReward_target_dist: 3.0
+PostureReward_scale: 1.0
+PostureReward_potential: false
+PostureReward_orientation_version: v3
+PostureReward_range_version: v4
+PostureReward_target_dist: 0.0
 
 AltitudeReward_safe_altitude: 4.0
 AltitudeReward_danger_altitude: 3.5
 AltitudeReward_Kv: 0.2
 
 EventDrivenReward_scale: 1
-EventDrivenReward_potential: true
+EventDrivenReward_potential: false

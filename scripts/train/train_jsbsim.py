@@ -15,7 +15,7 @@ from config import get_config
 from runner.share_jsbsim_runner import ShareJSBSimRunner
 from envs.JSBSim.envs import SingleCombatEnv, SingleControlEnv, MultipleCombatEnv
 from envs.env_wrappers import SubprocVecEnv, DummyVecEnv, ShareSubprocVecEnv, ShareDummyVecEnv
-
+from envs.JSBSim.utils.utils import get_home_dir
 
 def make_train_env(all_args):
     def get_env_fn(rank):
@@ -172,10 +172,10 @@ if __name__ == "__main__":
     # Fixed parameters (equivalent to the system args in the shell script)
     #
     env = "SingleCombat"
-    scenario = "1v1/NoWeapon/Selfplay"
+    scenario ="1v1/NoWeapon/vsBaseline"
     algo = "ppo"
     exp = "v1"
-    seed = 1
+    seed = 5
 
     # Additional parameters
     n_training_threads = 1
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     log_interval = 1
     save_interval = 1
     num_mini_batch = 5
-    buffer_size = 3000
+    buffer_size = 8000
     num_env_steps = 1e8
     lr = 3e-4
     gamma = 0.99
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     recurrent_hidden_size = 128
     recurrent_hidden_layers = 1
     data_chunk_length = 8
-   # modle_dir='D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run8'
+    modle_dir=get_home_dir()+"scripts/results/SingleCombat/NoWeapon/vsBaseline/ppo/run3"
     # Set the environment variable for CUDA (this is the same as CUDA_VISIBLE_DEVICES=0 in the shell)
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -210,7 +210,7 @@ if __name__ == "__main__":
         "--seed", str(seed),
         "--n-training-threads", str(n_training_threads),
         "--n-rollout-threads", str(n_rollout_threads),
-        "--cuda" if cuda else "",  # Only add `--cuda` if `cuda` is True
+        "--cuda"  "",  # Only add `--cuda` if `cuda` is True
         "--log-interval", str(log_interval),
         "--save-interval", str(save_interval),
         "--num-mini-batch", str(num_mini_batch),
@@ -226,8 +226,8 @@ if __name__ == "__main__":
         "--act-hidden-size", act_hidden_size,
         "--recurrent-hidden-size", str(recurrent_hidden_size),
         "--recurrent-hidden-layers", str(recurrent_hidden_layers),
-        "--data-chunk-length", str(data_chunk_length)
-       # "--model-dir", str(modle_dir)
+        "--data-chunk-length", str(data_chunk_length),
+        "--model-dir", str(modle_dir)
     ]
 
     # Filter out empty strings (like `--cuda` if `cuda` is False)

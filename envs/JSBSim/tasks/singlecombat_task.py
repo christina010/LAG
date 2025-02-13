@@ -18,11 +18,12 @@ class SingleCombatTask(BaseTask):
         self.use_artillery = getattr(self.config, 'use_artillery', False)
         if self.use_baseline:
             self.baseline_agent = self.load_agent(self.config.baseline_type)
+            self.baseline_agent.reset()
 
         self.reward_functions = [
-            AltitudeReward(self.config),
+            #AltitudeReward(self.config),
             PostureReward(self.config),
-            EventDrivenReward(self.config)
+           # EventDrivenReward(self.config)
         ]
 
         self.termination_conditions = [
@@ -205,45 +206,49 @@ class HierarchicalSingleCombatTask(SingleCombatTask):
 
     def __init__(self, config: str):
         super().__init__(config)
-        self.lowlevel_policy = BaselineActor()
-        self.lowlevel_policy.load_state_dict(torch.load("C:\\Users\\hch\\Desktop\\LGA\\LAG\\envs\\JSBSim\\model\\baseline_model.pt", map_location=torch.device('cuda'), weights_only=True))
-        print("modle in " + get_root_dir() + "/model/baseline_model.pt")
+        self.lowlevel_policy = BaselineActor().to("cpu")
+        self.lowlevel_policy.load_state_dict(torch.load("C:\\Users\\hch\\Desktop\\LGA\\LAG\\envs\\JSBSim\\model\\baseline_model.pt"))
         self.lowlevel_policy.eval()
-        self.norm_delta_altitude = np.array([0.1, 0, -0.1])
-        self.norm_delta_heading = np.array([-np.pi / 6, -np.pi / 12, 0, np.pi / 12, np.pi / 6])
-        self.norm_delta_velocity = np.array([0.05, 0, -0.05])
-
-        self.reward_functions = [
-            AltitudeReward(self.config),
-            PostureReward(self.config),
-            #EventDrivenReward(self.config)
-        ]
-
-        self.termination_conditions = [
-            LowAltitude(self.config),
-            ExtremeState(self.config),
-            Overload(self.config),
-            SafeReturn(self.config),
-            Timeout(self.config),
-        ]
+        # self.norm_delta_altitude = np.array([0.1, 0, -0.1])
+        # self.norm_delta_heading = np.array([-np.pi / 6, -np.pi / 12, 0, np.pi / 12, np.pi / 6])
+        # self.norm_delta_velocity = np.array([0.05, 0, -0.05])
+        self.norm_delta_heading = np.array([-np.pi / 12, -np.pi / 24,0, np.pi / 24,np.pi / 12])
+        self.norm_delta_velocity = np.array([-20,-10, 0, 10,20])
+        # self.reward_functions = [
+        #     #AltitudeReward(self.config),
+        #     PostureReward(self.config),
+        #     EventDrivenReward(self.config)
+        # ]
+        #
+        # self.termination_conditions = [
+        #     LowAltitude(self.config),
+        #     ExtremeState(self.config),
+        #     Overload(self.config),
+        #     SafeReturn(self.config),
+        #     Timeout(self.config),
+        # ]
+        self._inner_rnn_states={"A0100":np.zeros((1, 1, 128)),"B0100":np.zeros((1, 1, 128))}
+        if self.use_baseline:
+            self.baseline_agent.reset()
 
     def load_action_space(self):
-        self.action_space = spaces.MultiDiscrete([3, 5, 3])
+        self.action_space = spaces.MultiDiscrete([ 5,5])
 
     def normalize_action(self, env, agent_id, action):
         """Convert high-level action into low-level action.
         """
         if self.use_baseline and agent_id in env.enm_ids:
-            action = self.baseline_agent.get_action(env.agents[agent_id],env)
+            action = self.baseline_agent.get_action(env.agents[agent_id])
             return action
         else:
             # generate low-level input_obs
             raw_obs = self.get_obs(env, agent_id)
             input_obs = np.zeros(12)
             # (1) delta altitude/heading/velocity
-            input_obs[0] = self.norm_delta_altitude[action[0]]
-            input_obs[1] = self.norm_delta_heading[action[1]]
-            input_obs[2] = self.norm_delta_velocity[action[2]]
+            base_action = self.get_base_action(env)
+            input_obs[0] = base_action[0] /1000
+            input_obs[1] = in_range_rad(base_action[1])+self.norm_delta_heading[action[0]] # unit:rad
+            input_obs[2] = base_action[2]/340+self.norm_delta_velocity[action[1]]/340 # unit:
             # (2) ego info
             input_obs[3:12] = raw_obs[:9]
             input_obs = np.expand_dims(input_obs, axis=0)
@@ -253,18 +258,54 @@ class HierarchicalSingleCombatTask(SingleCombatTask):
             self._inner_rnn_states[agent_id] = _rnn_states.detach().cpu().numpy()
             # normalize low-level action
             norm_act = np.zeros(4)
-            norm_act[0] = action[0] / 41 - 1.
-            norm_act[1] = action[1] / 41 - 1.
-            norm_act[2] = action[2] / 41 - 1.
-            norm_act[3] = action[3] / 30 + 0.4
+            norm_act[0] = action[0] / 20 - 1.  # 0~40 => -1~1
+            norm_act[1] = action[1] / 20 - 1.  # 0~40 => -1~1
+            norm_act[2] = action[2] / 20 - 1.  # 0~40 => -1~1
+            norm_act[3] = action[3] / 58 + 0.4  # 0~29 => 0.4~0.9
+            # arr = np.array(norm_act)
+            # # 保存数组到 txt 文件
+            # file_path = "C:\\Users\\hch\\Desktop\\LGA\\LAG\\log\\norm_act.txt"
+            # with open(file_path, 'a') as f:
+            #     for value in arr:
+            #         f.write(str(value) + '\n')
             return norm_act
 
     def reset(self, env):
         """Task-specific reset, include reward function reset.
         """
         self._inner_rnn_states = {agent_id: np.zeros((1, 1, 128)) for agent_id in env.agents.keys()}
+        if self.use_baseline:
+            self.baseline_agent.reset()
         return super().reset(env)
 
+    def get_base_action(self, env):
+        # NOTE: only adapt for 1v1
+        ego_uid, enm_uid = 'A0100' , 'B0100'
+        ego_x, ego_y, ego_z = env.agents[ego_uid].get_position()
+        ego_vx, ego_vy, ego_vz = env.agents[ego_uid].get_velocity()
+        enm_x, enm_y, enm_z = env.agents[enm_uid].get_position()
+        # delta altitude
+        delta_altitude = enm_z - ego_z
+        # delta heading
+        ego_v = np.linalg.norm([ego_vx, ego_vy])
+        delta_x, delta_y = enm_x - ego_x, enm_y - ego_y
+        R = np.linalg.norm([delta_x, delta_y])
+        proj_dist = delta_x * ego_vx + delta_y * ego_vy
+        ego_AO = np.arccos(np.clip(proj_dist / (R * ego_v + 1e-8), -1, 1))
+        side_flag = np.sign(np.cross([ego_vx, ego_vy], [delta_x, delta_y]))
+        delta_heading = ego_AO * side_flag
+        # delta velocity
+        delta_velocity = env.agents[enm_uid].get_property_value(c.velocities_u_mps) - \
+                         env.agents[ego_uid].get_property_value(c.velocities_u_mps) + R / 50
+
+        arr = np.array([delta_altitude, delta_heading, delta_velocity])
+        # 保存数组到 txt 文件
+        # file_path = "C:\\Users\\hch\\Desktop\\LGA\\LAG\\log\\action.txt"
+        # with open(file_path, 'a') as f:
+        #     for value in arr:
+        #         f.write(str(value) + '\n')
+
+        return np.array([delta_altitude, delta_heading, delta_velocity])
 
 class StraightFlyAgent:
 
@@ -277,7 +318,7 @@ class StraightFlyAgent:
         return norm_act
 
     def get_action(self, sim: AircraftSimulator):
-        action = np.array([20, 18.6, 20, 0])
+        action = np.array([20, 18.6, 20, 0]) # 0, -1.4/20,0,0.4
         return self.normalize_action(action)
 
     def reset(self):
@@ -315,7 +356,7 @@ class BaselineAgent:
     def reset(self):
         self.rnn_states = np.zeros((1, 1, 128))
 
-    def set_delta_value(self, sim: AircraftSimulator,env):
+    def set_delta_value(self, sim: AircraftSimulator):
         raise NotImplementedError
 
     def get_observation(self, sim: AircraftSimulator, delta_value):
@@ -336,8 +377,8 @@ class BaselineAgent:
         norm_obs = np.expand_dims(norm_obs, axis=0)  # dim: (1,12)
         return norm_obs
 
-    def get_action(self, sim: AircraftSimulator,env):
-        delta_value = self.set_delta_value(sim,env)
+    def get_action(self, sim: AircraftSimulator):
+        delta_value = self.set_delta_value(sim)
         observation = self.get_observation(sim, delta_value)
         _action, self.rnn_states = self.actor(observation, self.rnn_states)
         action = _action.detach().cpu().numpy().squeeze()
@@ -434,13 +475,13 @@ class LeaderAgent(BaselineAgent):
         self.target_velocity = 243
 
 
-    def reset_target_value(self, sim: AircraftSimulator,env):
+    def reset_target_value(self, sim: AircraftSimulator):
         if int(sim.get_property_value(c.simulation_sim_time_sec)/self.turn_interval) > self.step:
             self.step+=1
             delta = 1.0
-            delta_heading = env.np_random.uniform(-delta, delta) * self.max_heading_increment
-            delta_altitude = env.np_random.uniform(-delta, delta) * self.max_altitude_increment
-            delta_velocities_u = env.np_random.uniform(-delta, delta) * self.max_velocities_u_increment
+            delta_heading = np.random.uniform(-delta, delta) * self.max_heading_increment
+            delta_altitude = np.random.uniform(-delta, delta) * self.max_altitude_increment
+            delta_velocities_u = np.random.uniform(-delta, delta) * self.max_velocities_u_increment
             new_heading = sim.get_property_value(c.target_heading_deg) + delta_heading
             new_heading = (new_heading + 360) % 360
             new_altitude = sim.get_property_value(c.target_altitude_ft) + delta_altitude
@@ -453,8 +494,8 @@ class LeaderAgent(BaselineAgent):
 
 
 
-    def set_delta_value(self, sim: AircraftSimulator,env):
-        self.reset_target_value(sim,env)
+    def set_delta_value(self, sim: AircraftSimulator):
+        self.reset_target_value(sim)
         #step_list = np.arange(1, len(self.target_heading_list)+1) * self.turn_interval / 0.2
         cur_heading = sim.get_property_value(c.attitude_heading_true_rad)
         if self.init_heading is None:

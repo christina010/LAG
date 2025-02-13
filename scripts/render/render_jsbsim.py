@@ -114,15 +114,15 @@ def main(args):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(message)s")
     # Fixed parameters (equivalent to the system args in the shell script)
-    env = "SingleControl"
-    scenario = "1/heading"
+    env = "SingleCombat"
+    scenario = "1v1/NoWeapon/vsBaseline"
     algo = "ppo"
     exp = "v1"
     seed = 5
 
     # Additional parameters
     n_training_threads = 1
-    n_rollout_threads = 4
+    n_rollout_threads = 1
     cuda = True
     log_interval = 1
     save_interval = 1
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     recurrent_hidden_size = 128
     recurrent_hidden_layers = 1
     data_chunk_length = 8
-    modeldir='D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run4'
+    modeldir='C:\\Users\\hch\\Desktop\\LGA\\LAG\\scripts\\results\\SingleCombat\\1v1\\NoWeapon\\vsBaseline\\ppo\\v1\\run20'
     # Set the environment variable for CUDA (this is the same as CUDA_VISIBLE_DEVICES=0 in the shell)
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 

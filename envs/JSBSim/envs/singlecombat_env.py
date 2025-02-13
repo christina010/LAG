@@ -50,7 +50,7 @@ class SingleCombatEnv(BaseEnv):
         #     'ic_h_sl_ft': self.np_random.uniform(17000, 23000),
         # })
         init_states = self.init_states.copy()
-        self.np_random.shuffle(init_states)
+        #self.np_random.shuffle(init_states)
         for idx, sim in enumerate(self.agents.values()):
             sim.reload(init_states[idx])
         self._tempsims.clear()

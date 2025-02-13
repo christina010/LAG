@@ -24,7 +24,8 @@ def parse_config(filename):
 
 def get_root_dir():
     return os.path.join(os.path.split(os.path.realpath(__file__))[0], '..')
-
+def get_home_dir():
+    return os.path.join(os.path.split(os.path.realpath(__file__))[0], '..','..','..')
 
 def LLA2NEU(lon, lat, alt, lon0=120.0, lat0=60.0, alt0=0):
     """Convert from Geodetic Coordinate System to NEU Coordinate System.
@@ -116,3 +117,11 @@ def in_range_rad(angle):
     if angle > np.pi:
         angle -= 2 * np.pi
     return angle
+
+
+if __name__ == '__main__':
+    path=get_home_dir()
+    #os.chdir(path)
+    files = os.listdir(path)
+    for file in files:
+        print(file)

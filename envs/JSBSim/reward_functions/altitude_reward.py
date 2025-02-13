@@ -36,5 +36,16 @@ class AltitudeReward(BaseRewardFunction):
         PH = 0.
         if ego_z <= self.danger_altitude:
             PH = np.clip(ego_z / self.danger_altitude, 0., 1.) - 1. - 1.
-        new_reward = Pv + PH
+        new_reward = 0
+        ego_feature = np.hstack([env.agents[agent_id].get_position(),
+                                 env.agents[agent_id].get_velocity()])
+        for enm in env.agents[agent_id].enemies:
+            # 获取敌方位置和速度信息
+            enm_feature = np.hstack([enm.get_position(),
+                                    enm.get_velocity()])
+            ego_x, ego_y, ego_z, ego_vx, ego_vy, ego_vz = ego_feature
+            enm_x, enm_y, enm_z, enm_vx, enm_vy, enm_vz = enm_feature
+            delta_z=(enm_z - ego_z)/1000
+            new_reward+= -np.log1p(1/np.e+np.fabs(delta_z)-1)
+
         return self._process(new_reward, agent_id, (Pv, PH))

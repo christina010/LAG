@@ -18,13 +18,13 @@ from envs.JSBSim.model.baseline_actor import BaselineActor
 class BaselineAgent(ABC):
     def __init__(self, agent_id) -> None:
         self.model_path = "C:\\Users\\hch\\Desktop\\LGA\\LAG\\envs\\JSBSim\\model\\baseline_model.pt" #get_root_dir() + '/model/baseline_model.pt'
-        self.actor = BaselineActor()
+        self.actor = BaselineActor().to("cpu")
         # self.model_path = get_root_dir() + '/model/baseline_model.pt'
         # self.actor = BaselineActor()
         #self.model_path = 'D:\\HCH\\LAG\\scripts\\results\\SingleControl\\1\\heading\\ppo\\v1\\run4\\actor_latest.pt'  # get_root_dir() + '/model/baseline_model.pt'
         #self.model_path = "D:\\HCH\\LAG\\results\\SingleControl\\1\\heading\\ppo\\v1\\run10\\actor_latest.pt"
         # self.actor = BaselineActor(use_mlp_actlayer=True)
-        self.actor.load_state_dict(torch.load(self.model_path, weights_only=True))
+        self.actor.load_state_dict(torch.load(self.model_path))
         self.actor.eval()
         self.agent_id = agent_id
         self.state_var = [
@@ -85,6 +85,18 @@ class BaselineAgent(ABC):
         observation = self.get_observation(env, task, delta_value)
         _action, self.rnn_states = self.actor(observation, self.rnn_states)
         action = _action.detach().cpu().numpy().squeeze()
+        print(observation)
+        norm_act = np.zeros(4)
+        norm_act[0] = action[0] / 20 - 1.
+        norm_act[1] = action[1] / 20 - 1.
+        norm_act[2] = action[2] / 20 - 1.
+        norm_act[3] = action[3] / 58 + 0.4
+
+        arr = np.array(norm_act)
+        # file_path = "C:\\Users\\hch\\Desktop\\LGA\\LAG\\log\\norm_act2.txt"
+        # with open(file_path, 'a') as f:
+        #     for value in arr:
+        #         f.write(str(value) + '\n')
         return action
 
 class ManeuverTestAgent(BaselineAgent):
@@ -182,11 +194,11 @@ class PursueAgent(BaselineAgent):
 
     def set_delta_value(self, env, task):
         # NOTE: only adapt for 1v1
-        ego_uid, enm_uid = list(env.agents.keys())[self.agent_id], list(env.agents.keys())[(self.agent_id+1)%2] 
+        ego_uid, enm_uid = list(env.agents.keys())[self.agent_id], list(env.agents.keys())[(self.agent_id+1)%2]
         ego_x, ego_y, ego_z = env.agents[ego_uid].get_position()
         ego_vx, ego_vy, ego_vz = env.agents[ego_uid].get_velocity()
         enm_x, enm_y, enm_z = env.agents[enm_uid].get_position()
-        # delta altitude
+        # delta altitude m
         delta_altitude = enm_z - ego_z
         # delta heading
         ego_v = np.linalg.norm([ego_vx, ego_vy])
@@ -196,9 +208,15 @@ class PursueAgent(BaselineAgent):
         ego_AO = np.arccos(np.clip(proj_dist / (R * ego_v + 1e-8), -1, 1))
         side_flag = np.sign(np.cross([ego_vx, ego_vy], [delta_x, delta_y]))
         delta_heading = ego_AO * side_flag
-        # delta velocity
+        # delta velocity m/s
         delta_velocity = env.agents[enm_uid].get_property_value(c.velocities_u_mps) - \
-                         env.agents[ego_uid].get_property_value(c.velocities_u_mps)
+                         env.agents[ego_uid].get_property_value(c.velocities_u_mps)+ R/50
+        arr = np.array([delta_altitude, delta_heading, delta_velocity])
+        #保存数组到 txt 文件
+        # file_path = "C:\\Users\\hch\\Desktop\\LGA\\LAG\\log\\action2.txt"
+        # with open(file_path, 'a') as f:
+        #     for value in arr:
+        #         f.write(str(value) + '\n')
         return np.array([delta_altitude, delta_heading, delta_velocity])
 
 
@@ -258,7 +276,7 @@ class LeaderAgent(BaselineAgent):
         super().__init__(agent_id)
         self.turn_interval = 30
         self.dodge_missile = False # if set true, start turn when missile is detected
-        self.target_heading=0
+        self.target_heading=180
         self.target_altitude = 6000
         self.target_velocity = 243
         self.step = 0
@@ -274,7 +292,7 @@ class LeaderAgent(BaselineAgent):
         self.step = 0
         self.rnn_states = np.zeros((1, 1, 128))
         self.init_heading = None
-        self.target_heading = 0
+        self.target_heading = 180
         self.target_altitude = 6096
         self.target_velocity = 243
 
@@ -301,7 +319,7 @@ class LeaderAgent(BaselineAgent):
     def set_delta_value(self,env,task):
         uid = list(env.agents.keys())[self.agent_id]
         sim=env.agents[uid]
-        self.reset_target_value(sim,env)
+        #self.reset_target_value(sim,env)
 
         cur_heading = sim.get_property_value(c.attitude_heading_true_rad)
         if self.init_heading is None:

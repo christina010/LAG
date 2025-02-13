@@ -1,7 +1,7 @@
 import numpy as np
 from wandb import agent
 from .reward_function_base import BaseRewardFunction
-from ..utils.utils import get_AO_TA_R
+from ..utils.utils import get_AO_TA_R,get2d_AO_TA_R
 
 
 class PostureReward(BaseRewardFunction):
@@ -59,11 +59,12 @@ class PostureReward(BaseRewardFunction):
             enm_feature = np.hstack([enm.get_position(),
                                     enm.get_velocity()])
             # 计算AO、TA角度和距离
-            AO, _, R = get_AO_TA_R(ego_feature, enm_feature)
+            #AO, _, R = get_AO_TA_R(ego_feature, enm_feature)
+            AO, _, R = get2d_AO_TA_R(ego_feature, enm_feature)
             # 分别计算朝向奖励和距离奖励,并相乘
             orientation_reward = self.orientation_fn(AO)
             range_reward = self.range_fn(R / 1000)  # 转换为km
-            new_reward += orientation_reward * range_reward
+            new_reward = 0 + range_reward
         return self._process(new_reward, agent_id, (orientation_reward, range_reward))
 
     def get_orientation_function(self, version):
@@ -78,8 +79,23 @@ class PostureReward(BaseRewardFunction):
             return lambda AO: (1. - np.tanh(2 * (AO - np.pi / 2))) / 2. + 0.5
         elif version == 'v2':
             return lambda AO: 1 / (50 * AO / np.pi + 2) + 1
+        elif version == 'v3':
+            return lambda AO: -np.log1p(1/np.e+np.fabs(AO)-1)
         else:
             raise NotImplementedError(f"Unknown orientation function version: {version}")
+
+        # def get_orientation_function(self, version):
+        #     if version == 'v0':
+        #         return lambda AO, TA: (1. - np.tanh(9 * (AO - np.pi / 9))) / 3. + 1 / 3. \
+        #                               + min((np.arctanh(1. - max(2 * TA / np.pi, 1e-4))) / (2 * np.pi), 0.) + 0.5
+        #     elif version == 'v1':
+        #         return lambda AO, TA: (1. - np.tanh(2 * (AO - np.pi / 2))) / 2. \
+        #                               * (np.arctanh(1. - max(2 * TA / np.pi, 1e-4))) / (2 * np.pi) + 0.5
+        #     elif version == 'v2':
+        #         return lambda AO, TA: 1 / (50 * AO / np.pi + 2) + 1 / 2 \
+        #                               + min((np.arctanh(1. - max(2 * TA / np.pi, 1e-4))) / (2 * np.pi), 0.) + 0.5
+        #     else:
+        #         raise NotImplementedError(f"Unknown orientation function version: {version}")
 
     def get_range_funtion(self, version):
         """
@@ -99,5 +115,7 @@ class PostureReward(BaseRewardFunction):
                                          (1. + np.exp(-(R - self.target_dist + 1) * 0.8)), 0.3, 1), np.sign(7 - R))
         elif version == 'v3':
             return lambda R: 1 * (R < 5) + (R >= 5) * np.clip(-0.032 * R**2 + 0.284 * R + 0.38, 0, 1) + np.clip(np.exp(-0.16 * R), 0, 0.2)
+        elif version == 'v4':
+            return lambda R: (-np.log1p(1 / np.exp(1)+R - 1)+np.maximum((2 - R) * 0.5, 0))
         else:
             raise NotImplementedError(f"Unknown range function version: {version}")

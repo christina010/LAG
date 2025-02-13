@@ -103,6 +103,7 @@ class BaseEnv(gymnasium.Env):
         # reset task
         self.task.reset(self)
         obs = self.get_obs()
+       # self.render(filepath="test212.txt.acmi")
         return self._pack(obs)
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
@@ -147,7 +148,7 @@ class BaseEnv(gymnasium.Env):
         for agent_id in self.agents.keys():
             reward, info = self.task.get_reward(self, agent_id, info)
             rewards[agent_id] = [reward]
-
+       # self.render(filepath="test212.txt.acmi")
         return self._pack(obs), self._pack(rewards), self._pack(dones), info
 
     def get_obs(self):
